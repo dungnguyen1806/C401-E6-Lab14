@@ -17,26 +17,26 @@ Your task is to compare them and evaluate the quality of both answers.
 Tasks:
 1. Think step-by-step (Chain of Thought): Analyze the factual accuracy, completeness, and clarity of both answers.
 2. Determine which answer is better ('A', 'B', or 'Tie').
-3. Based on your analysis, assign a score from 1 to 5 for Answer A, and a score from 1 to 5 for Answer B.
-   - 5: Excellent
-   - 4: Good
-   - 3: Acceptable
-   - 2: Poor
-   - 1: Completely incorrect
+3. Based on your analysis, assign a score from 1 to 5 for Answer A, and a score from 1 to 5 for Answer B using the following Rubric:
+   - Điểm 5: Câu trả lời hoàn toàn trung thực, đầy đủ và không chứa bất kỳ ảo giác nào. (Perfectly accurate, complete, no hallucinations).
+   - Điểm 4: Câu trả lời tốt, nhưng có lỗi nhỏ không đáng kể. (Good, minor non-critical issues).
+   - Điểm 3: Câu trả lời chính xác nhưng bỏ sót các ràng buộc quan trọng trong ngữ cảnh. (Accurate but misses important constraints).
+   - Điểm 2: Câu trả lời kém, phần lớn không chính xác hoặc không liên quan. (Poor, mostly incorrect or irrelevant).
+   - Điểm 1: Câu trả lời trực tiếp mâu thuẫn với ngữ cảnh. (Directly contradicts the context).
 
 Output your response as a valid JSON object with the following format exactly:
-{
+{{
     "chain_of_thought": "your step-by-step reasoning",
     "winner": "A" or "B" or "Tie",
     "score_a": <int>,
-    "score_b": <int>
-}
+    "reason_a": "Clear reason why Answer A received this score",
+    "score_b": <int>,
+    "reason_b": "Clear reason why Answer B received this score"
+}}
 """
 
 class LLMJudge:
     def __init__(self):
-        # Initialize 2 clients: OpenAI for gpt-4o, and OpenAI compatible endpoint for Gemini
-        # as requested: "gemini api is from google ai studio and open api key is from open ai"
         self.openai_client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
         self.gemini_client = AsyncOpenAI(
             api_key=os.environ.get("GEMINI_API_KEY"),
@@ -62,7 +62,7 @@ class LLMJudge:
             return json.loads(response.choices[0].message.content)
         except Exception as e:
             print(f"Error calling {model}: {e}")
-            return {"chain_of_thought": "Error", "winner": "Tie", "score_a": 3, "score_b": 3}
+            return {"chain_of_thought": "Error", "winner": "Tie", "score_a": 3, "reason_a": "API Error", "score_b": 3, "reason_b": "API Error"}
 
     async def evaluate_multi_judge(self, question: str, answer: str, ground_truth: str) -> Dict[str, Any]:
         """
