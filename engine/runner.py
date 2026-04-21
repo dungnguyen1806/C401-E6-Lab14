@@ -20,15 +20,17 @@ class BenchmarkRunner:
         ragas_scores = await self.evaluator.score(test_case, response)
         
         # 3. Chạy Multi-Judge
+        ground_truth_answer = test_case.get("ground_truth_answer", test_case.get("expected_answer", ""))
         judge_result = await self.judge.evaluate_multi_judge(
             test_case["question"], 
             response["answer"], 
-            test_case["expected_answer"]
+            ground_truth_answer
         )
         
         return {
             "test_case": test_case["question"],
             "agent_response": response["answer"],
+            "retrieved_ids": response.get("retrieved_ids", []),
             "latency": latency,
             "ragas": ragas_scores,
             "judge": judge_result,
