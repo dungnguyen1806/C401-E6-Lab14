@@ -92,15 +92,16 @@ class BenchmarkRunner:
     async def _run_single_test_impl(self, test_case: Dict[str, Any]) -> Dict[str, Any]:
         started_at = time.perf_counter()
         response = await self.agent.query(test_case["question"])
-        latency = time.perf_counter() - started_at
-
-        ragas_scores, judge_result = await asyncio.gather(
-            self._safe_score(test_case, response),
-            self._safe_judge(
-                test_case["question"],
-                response.get("answer", ""),
-                self._get_ground_truth_answer(test_case),
-            ),
+        latency = time.perf_counter() - start_time
+        
+        # 2. Chạy RAGAS metrics
+        ragas_scores = await self.evaluator.score(test_case, response)
+        
+        # 3. Chạy Multi-Judge
+        judge_result = await self.judge.evaluate_multi_judge(
+            test_case["question"], 
+            response["answer"], 
+            test_case["expected_answer"]
         )
 
         metadata = response.get("metadata", {})
@@ -111,9 +112,7 @@ class BenchmarkRunner:
         return {
             "question_id": test_case.get("question_id"),
             "test_case": test_case["question"],
-            "question_type": test_case.get("question_type", test_case.get("metadata", {}).get("type", "unknown")),
-            "complexity": test_case.get("complexity", test_case.get("metadata", {}).get("difficulty", "unknown")),
-            "agent_response": response.get("answer", ""),
+            "agent_response": response["answer"],
             "latency": latency,
             "ragas": ragas_scores,
             "judge": judge_result,

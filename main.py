@@ -3,16 +3,27 @@ import json
 import os
 import time
 from engine.runner import BenchmarkRunner
+from engine.retrieval_eval import RetrievalEvaluator
 from agent.main_agent import MainAgent
 
 # Giả lập các components Expert
 class ExpertEvaluator:
+    def __init__(self):
+        self.retrieval_evaluator = RetrievalEvaluator(top_k=3)
+
     async def score(self, case, resp): 
-        # Giả lập tính toán Hit Rate và MRR
+        retrieval = self.retrieval_evaluator.evaluate_case(
+            case.get("ground_truth_chunk_ids", []),
+            resp.get("retrieved_ids", [])
+        )
         return {
             "faithfulness": 0.9, 
             "relevancy": 0.8,
-            "retrieval": {"hit_rate": 1.0, "mrr": 0.5}
+            "retrieval": {
+                "hit_rate": retrieval["hit_rate"],
+                "mrr": retrieval["mrr"],
+                "excluded_from_avg": retrieval["excluded_from_avg"]
+            }
         }
 
 class MultiModelJudge:
@@ -45,8 +56,19 @@ async def run_benchmark_with_results(agent_version: str):
         "metadata": {"version": agent_version, "total": total, "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")},
         "metrics": {
             "avg_score": sum(r["judge"]["final_score"] for r in results) / total,
-            "hit_rate": sum(r["ragas"]["retrieval"]["hit_rate"] for r in results) / total,
+            "hit_rate": (
+                sum(r["ragas"]["retrieval"]["hit_rate"] for r in results if not r["ragas"]["retrieval"].get("excluded_from_avg", False))
+                / max(1, sum(1 for r in results if not r["ragas"]["retrieval"].get("excluded_from_avg", False)))
+            ),
+            "mrr": (
+                sum(r["ragas"]["retrieval"]["mrr"] for r in results if not r["ragas"]["retrieval"].get("excluded_from_avg", False))
+                / max(1, sum(1 for r in results if not r["ragas"]["retrieval"].get("excluded_from_avg", False)))
+            ),
             "agreement_rate": sum(r["judge"]["agreement_rate"] for r in results) / total
+        },
+        "retrieval_details": {
+            "included_cases": sum(1 for r in results if not r["ragas"]["retrieval"].get("excluded_from_avg", False)),
+            "out_of_context_cases": sum(1 for r in results if r["ragas"]["retrieval"].get("excluded_from_avg", False))
         }
     }
     return results, summary
