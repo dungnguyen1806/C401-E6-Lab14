@@ -14,7 +14,7 @@
 
 #### 👥 Nhóm 2: Core Engine (Giai đoạn 2)
 **3. Hải - AI Engineer (Multi-Judge Consensus)**
-*   **Nhiệm vụ:** Code class/hàm gọi ít nhất 2 model LLM làm Giám khảo (Ví dụ: GPT-4o-mini và Claude-3-haiku). Viết logic tính toán độ đồng Dũng (Agreement Rate) và xử lý xung đột (VD: Nếu chênh lệch > 2 điểm thì prompt lại hoặc chia trung bình).
+*   **Nhiệm vụ:** Code class/hàm gọi ít nhất 2 model LLM làm Giám khảo (Ví dụ: GPT-4o-mini và Claude-3-haiku). Viết logic tính toán độ đồng thuận (Agreement Rate) và xử lý xung đột (VD: Nếu chênh lệch > 2 điểm thì prompt lại hoặc chia trung bình).
 *   **Chú ý:** Tuyệt đối không dùng 1 model Judge. Output của phần này quyết định 20% điểm.
 
 **4. Thuận - Backend/Performance (Async Runner & Cost Tracker)**
