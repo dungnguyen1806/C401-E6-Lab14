@@ -1,0 +1,105 @@
+# SỔ TAY NHÂN SỰ VÀ BẢO MẬT IT - FUTUREIT (PHIÊN BẢN 4.2)
+**Mã tài liệu:** FIT-HR-IT-2026  
+**Ngày hiệu lực:** 01/01/2026  
+**Đối tượng áp dụng:** Toàn thể nhân viên, nhà thầu và thực tập sinh.
+
+---
+
+## PHẦN I: QUY ĐỊNH NHÂN SỰ & CHẾ ĐỘ PHÚC LỢI
+
+### Điều 1: Thời giờ làm việc và Chấm công
+1.1. Thời gian làm việc tiêu chuẩn là **42 giờ/tuần**.
+* **Bộ phận Hành chính & Kinh doanh:** 08:30 – 17:30 (nghỉ trưa 60 phút).
+* **Bộ phận Kỹ thuật & R&D:** Thời gian linh hoạt (Flexitime), bắt buộc có mặt tại văn phòng trong khung giờ lõi (Core hours) từ **10:30 – 15:30**.
+* **Bộ phận Vận hành Hệ thống (SRE):** Làm việc theo ca 12 tiếng (Ca sáng: 07:00 – 19:00; Ca đêm: 19:00 – 07:00).
+
+1.2. Mức phạt đi muộn:
+* Muộn dưới **15 phút**: Phạt **50.000 VNĐ/lần**.
+* Muộn từ **16 – 60 phút**: Phạt **200.000 VNĐ/lần**.
+* Muộn quá **03 lần/tháng**: Trừ **5%** tổng lương hiệu quả (KPI) của tháng đó.
+
+### Điều 2: Chế độ Nghỉ phép năm
+2.1. Nhân viên chính thức có **14 ngày** phép/năm. Cứ mỗi **03 năm** làm việc liên tục, nhân viên được cộng thêm **01 ngày** phép thâm niên.
+
+2.2. **Quy định chuyển tiếp:**
+* Nhân viên được phép chuyển tối đa **05 ngày** phép dư sang quý I năm sau. Toàn bộ phép dư phải được sử dụng trước ngày **31/03**, nếu không sẽ bị hủy bỏ không bồi thường.
+* **Ngoại lệ:** Đối với nhân viên thuộc **Dự án Trọng điểm cấp S**, nếu không thể nghỉ phép do yêu cầu công việc, công ty sẽ thanh toán bằng **200%** lương cơ bản cho những ngày chưa nghỉ, giới hạn tối đa **07 ngày**.
+
+### Điều 3: Điều kiện làm việc từ xa (Remote Work)
+3.1. Nhân viên có quyền đăng ký làm việc từ xa tối đa **02 ngày/tuần** nếu đạt chỉ số KPI tháng trước trên **85%**.
+
+3.2. **Hạn chế:** * Điều khoản này **không áp dụng** cho nhân viên đang trong thời gian thử việc hoặc nhân viên thuộc bộ phận **An ninh mạng (SOC)** do yêu cầu bảo mật đường truyền vật lý.
+* Nhân viên làm việc từ xa phải cam kết phản hồi tin nhắn nội bộ trong vòng **10 phút** và cuộc gọi trong vòng **03 phút**. Vi phạm quá **02 lần/ngày** sẽ bị đình chỉ quyền làm việc từ xa trong **90 ngày** kế tiếp.
+
+---
+
+## PHẦN II: QUY ĐỊNH BẢO MẬT VÀ AN TOÀN THÔNG TIN
+
+### Điều 4: Quản lý Tài sản và Thiết bị IT
+4.1. Cấp phát thiết bị:
+* **Lập trình viên (Dev):** Laptop cấu hình tối thiểu 32GB RAM, màn hình rời 27 inch.
+* **Thiết kế (Designer):** Thiết bị bảng vẽ điện tử và màn hình chuẩn màu 4K.
+* **Nhân viên Kinh doanh (Sales):** iPad Pro và điện thoại công vụ.
+
+4.2. Khấu hao và bồi thường:
+* Thiết bị được khấu hao trong **36 tháng**. 
+* Nếu làm hỏng hoặc mất thiết bị trong **12 tháng đầu tiên**, nhân viên bồi thường **100%** giá trị hóa đơn.
+* Từ tháng thứ **13 – 24**, bồi thường **60%**.
+* Từ tháng thứ **25** trở đi, bồi thường **30%**.
+
+### Điều 5: Bảo mật Mật khẩu và Truy cập
+5.1. Mật khẩu hệ thống phải có độ dài tối thiểu **14 ký tự**, bao gồm: ít nhất 01 chữ hoa, 01 chữ thường, 01 chữ số và 01 ký tự đặc biệt.
+
+5.2. **Chu kỳ thay đổi:**
+* Tài khoản quản trị (Admin): Thay đổi định kỳ **30 ngày/lần**.
+* Tài khoản người dùng thông thường: Thay đổi định kỳ **90 ngày/lần**.
+* **Cấm:** Không được sử dụng lại **05 mật khẩu** gần nhất.
+
+5.3. Xác thực đa yếu tố (MFA):
+* Bắt buộc đối với tất cả các đăng nhập từ IP bên ngoài văn phòng.
+* Nếu nhập sai mật khẩu **05 lần** liên tiếp, tài khoản sẽ bị khóa tự động trong **120 phút**. Để mở khóa trước thời hạn, nhân viên phải nộp đơn giải trình có chữ ký của Trưởng bộ phận và Giám đốc CNTT (CTO).
+
+### Điều 6: Quy định về Dữ liệu và Sở hữu Trí tuệ
+6.1. Tất cả mã nguồn (Source code), dữ liệu khách hàng và quy trình được tạo ra trong thời gian làm việc tại FutureIT thuộc quyền sở hữu vô thời hạn của công ty.
+
+6.2. Phân loại dữ liệu:
+* **Mức 1 (Công khai):** Tài liệu marketing, thông cáo báo chí.
+* **Mức 2 (Nội bộ):** Sơ đồ tổ chức, quy trình làm việc.
+* **Mức 3 (Tối mật):** Danh sách khách hàng, cấu trúc database, thuật toán lõi.
+
+6.3. **Biện pháp xử lý vi phạm:**
+* Sao chép dữ liệu **Mức 3** ra thiết bị ngoại vi (USB, HDD) mà không có ticket phê duyệt: Sa thải ngay lập tức và truy tố trách nhiệm dân sự/hình sự tùy mức độ thiệt hại (tối thiểu bồi thường **500.000.000 VNĐ**).
+* Chia sẻ tài khoản nội bộ cho người ngoài: Phạt **20.000.000 VNĐ** và đình chỉ công tác **15 ngày** không hưởng lương để điều tra.
+
+---
+
+## PHẦN III: QUY TRÌNH PHÊ DUYỆT VÀ KỶ LUẬT
+
+### Điều 7: Quy trình mua sắm phần mềm/công cụ
+7.1. Nhân viên có nhu cầu mua công cụ hỗ trợ (SaaS, bản quyền phần mềm) dưới **200 USD/tháng** chỉ cần sự phê duyệt của Quản lý trực tiếp (Manager).
+
+7.2. Các yêu cầu trên **200 USD/tháng** hoặc trên **2.000 USD/năm** phải thông qua Hội đồng Thẩm định Công nghệ (TAB) vào thứ 3 hàng tuần. Thời gian phản hồi tối đa là **05 ngày làm việc**.
+
+### Điều 8: Chấm dứt hợp đồng và Bàn giao
+8.1. Thời hạn thông báo nghỉ việc:
+* **Vị trí quản lý (Level M1 trở lên):** Thông báo trước **60 ngày**.
+* **Vị trí nhân viên:** Thông báo trước **30 ngày**.
+* **Thực tập sinh:** Thông báo trước **07 ngày**.
+
+8.2. Quy trình bàn giao IT (IT Offboarding):
+* Trong vòng **24 giờ** kể từ khi gửi đơn nghỉ việc được duyệt, quyền truy cập vào các hệ thống "Tối mật" sẽ bị thu hồi.
+* Vào ngày làm việc cuối cùng, nhân viên phải bàn giao lại thiết bị trước **15:00**. Bộ phận IT sẽ kiểm tra trong **120 phút**. Nếu có dấu hiệu can thiệp phần cứng hoặc xóa dữ liệu trái phép, công ty sẽ tạm giữ **20%** lương tháng cuối cùng cho đến khi làm rõ.
+
+---
+
+## PHẦN IV: ĐIỀU KHOẢN THI HÀNH
+
+### Điều 9: Hiệu lực và Sửa đổi
+9.1. Sổ tay này có hiệu lực kể từ ngày ký. Các quy định trước đây trái với sổ tay này đều bị bãi bỏ.
+
+9.2. FutureIT có quyền sửa đổi các điều khoản với điều kiện thông báo bằng email toàn công ty trước ít nhất **15 ngày** tính đến ngày áp dụng thay đổi mới.
+
+### Điều 10: Cam kết bảo mật (NDA)
+10.1. Mọi nhân viên sau khi nghỉ việc vẫn phải tuân thủ cam kết bảo mật thông tin trong vòng **24 tháng**.
+
+10.2. Trong vòng **12 tháng** kể từ ngày nghỉ việc, nhân viên không được phép làm việc cho các đối thủ cạnh tranh trực tiếp (được liệt kê trong Phụ lục A) nếu vị trí cũ là **Kỹ sư cao cấp** hoặc **Quản lý**. Vi phạm điều khoản này sẽ chịu mức phạt tương đương **12 tháng** lương gần nhất.
