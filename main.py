@@ -133,11 +133,10 @@ def build_summary(results: list, version: str, judge: LLMJudge, runner: Benchmar
         },
         "judge_reliability": judge_report,
         "cost_reduction_proposal": (
-            "De xuat giam 30% chi phi Eval: "
-            "(1) Dung model nho (gpt-3.5-turbo) cho cau hoi complexity=simple, "
-            "model lon (gpt-4o-mini) cho cau kho. "
-            "(2) Cache ket qua Judge cho cau hoi trung lap. "
-            "(3) Giam max_tokens Judge xuong 100 cho cau don gian."
+            "De xuat toi uu chi phi Eval (Gemini-Era): "
+            "(1) Dung Gemini 2.0 Flash cho các cau complexity=simple ($0.1/1M tokens). "
+            "(2) Chi goi GPT-4o-mini lam Cross-check khi Gemini co score < 3 hoac co xung dot lon. "
+            "(3) Nen su dung Batch API cua OpenAI de giam 50% chi phi cho Judge thu hai."
         ),
     }
 
