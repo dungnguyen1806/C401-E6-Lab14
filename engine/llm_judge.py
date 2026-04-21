@@ -104,7 +104,7 @@ class LLMJudge:
                     {"role": "user", "content": user_content},
                 ],
                 temperature=temp,
-                response_format={"type": "json_object"} if "gemini" not in model else None, # Gemini tự hiểu JSON tốt
+                response_format={"type": "json_object"} if "gemini" not in model else None,
                 max_tokens=300
             )
             
@@ -169,8 +169,19 @@ class LLMJudge:
         self._total_stats["output"] += (out_a + out_b)
         self._total_stats["cost"] += cost
 
+        # Tính Agreement Rate cho Release Gate
+        if delta == 0:
+            agreement_rate = 1.0
+        elif delta == 1:
+            agreement_rate = 0.75
+        elif delta == 2:
+            agreement_rate = 0.5
+        else:
+            agreement_rate = 0.25
+
         return {
             "final_score": round(final_score, 2),
+            "agreement_rate": agreement_rate,
             "consensus_reached": delta <= 1,
             "individual_judgments": {
                 "judge_primary": {"model": self.model_a, "score": score_a, "reason": reason_a},
@@ -178,8 +189,12 @@ class LLMJudge:
             },
             "metrics": {
                 "delta": delta,
-                "cost_usd": round(cost, 6),
                 "tie_breaker_active": tie_breaker_used
+            },
+            "cost": {
+                "total_usd": round(cost, 6),
+                "input_tokens": in_a + in_b,
+                "output_tokens": out_a + out_b
             }
         }
 
@@ -187,12 +202,40 @@ class LLMJudge:
         p = MODEL_PRICING.get(model, MODEL_PRICING["gemini-2.5-flash"])
         return (in_t / 1_000_000 * p["input"]) + (out_t / 1_000_000 * p["output"])
 
-    def get_summary_report(self) -> Dict[str, Any]:
+    def compute_cohens_kappa(self) -> float:
+        if not self._all_scores_a:
+            return 0.0
+
+        n = len(self._all_scores_a)
+        categories = list(range(1, 6))
+        agreements = sum(1 for a, b in zip(self._all_scores_a, self._all_scores_b) if a == b)
+        p_observed = agreements / n
+
+        p_expected = 0.0
+        for cat in categories:
+            p_a = sum(1 for s in self._all_scores_a if s == cat) / n
+            p_b = sum(1 for s in self._all_scores_b if s == cat) / n
+            p_expected += p_a * p_b
+
+        if p_expected >= 1.0:
+            return 1.0
+        return round((p_observed - p_expected) / (1 - p_expected), 4)
+
+    async def aclose(self) -> None:
+        if self._openai_client:
+            await self._openai_client.close()
+        if self._gemini_client:
+            await self._gemini_client.close()
+
+    def get_total_cost_report(self) -> Dict[str, Any]:
         n = len(self._all_scores_a)
         return {
             "total_cases": n,
+            "total_input_tokens": self._total_stats["input"],
+            "total_output_tokens": self._total_stats["output"],
             "total_cost_usd": round(self._total_stats["cost"], 4),
-            "avg_score": round(sum(self._all_scores_a) / max(n, 1), 2),
+            "avg_cost_per_case": round(self._total_stats["cost"] / max(n, 1), 6),
+            "cohens_kappa": self.compute_cohens_kappa(),
             "model_consistency_rate": self._calculate_agreement()
         }
 

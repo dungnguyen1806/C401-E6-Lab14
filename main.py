@@ -15,6 +15,7 @@ import time
 from engine.runner import BenchmarkRunner
 from engine.retrieval_eval import RetrievalEvaluator
 from engine.llm_judge import LLMJudge
+from engine.release_gate import ReleaseGate
 from agent.main_agent import MainAgent
 
 from dotenv import load_dotenv
@@ -66,53 +67,6 @@ class ExpertEvaluator:
                 "excluded_from_avg": retrieval["excluded_from_avg"],
             },
         }
-
-
-# ── Regression Analysis & Release Gate ────────────────────────
-def compute_regression(v1_summary: dict, v2_summary: dict) -> dict:
-    """
-    So sánh V1 vs V2 và quyết định Release/Rollback.
-
-    Logic Release Gate:
-    - MRR_v2 >= MRR_v1 (retrieval không tệ hơn)
-    - avg_score_v2 >= avg_score_v1 (chất lượng không giảm)
-    - cost_v2 < cost_threshold (chi phí chấp nhận được)
-    """
-    v1m = v1_summary["metrics"]
-    v2m = v2_summary["metrics"]
-
-    delta_score = v2m["avg_score"] - v1m["avg_score"]
-    delta_mrr = v2m.get("mrr", 0) - v1m.get("mrr", 0)
-    delta_hit_rate = v2m.get("hit_rate", 0) - v1m.get("hit_rate", 0)
-    delta_agreement = v2m.get("agreement_rate", 0) - v1m.get("agreement_rate", 0)
-
-    # Release Gate conditions
-    score_ok = delta_score >= 0
-    mrr_ok = delta_mrr >= -0.05  # cho phép giảm nhẹ 5%
-    quality_ok = v2m["avg_score"] >= 3.0  # minimum quality bar
-
-    gate_passed = score_ok and mrr_ok and quality_ok
-
-    return {
-        "comparison": {
-            "v1_version": v1_summary["metadata"]["version"],
-            "v2_version": v2_summary["metadata"]["version"],
-            "delta_score": round(delta_score, 3),
-            "delta_mrr": round(delta_mrr, 3),
-            "delta_hit_rate": round(delta_hit_rate, 3),
-            "delta_agreement_rate": round(delta_agreement, 3),
-        },
-        "release_gate": {
-            "passed": gate_passed,
-            "conditions": {
-                "score_improved": score_ok,
-                "mrr_stable": mrr_ok,
-                "quality_above_bar": quality_ok,
-            },
-            "decision": "🟢 PASSED RELEASE GATE — APPROVE" if gate_passed
-                        else "🔴 FAILED RELEASE GATE — ROLLBACK",
-        },
-    }
 
 
 # ── Build Summary ─────────────────────────────────────────────
@@ -179,11 +133,11 @@ def build_summary(results: list, version: str, judge: LLMJudge, runner: Benchmar
         },
         "judge_reliability": judge_report,
         "cost_reduction_proposal": (
-            "Đề xuất giảm 30% chi phí Eval: "
-            "(1) Dùng model nhỏ (gpt-3.5-turbo) cho câu hỏi complexity=simple, "
-            "model lớn (gpt-4o-mini) cho câu khó. "
-            "(2) Cache kết quả Judge cho câu hỏi trùng lặp. "
-            "(3) Giảm max_tokens Judge xuống 100 cho câu đơn giản."
+            "De xuat giam 30% chi phi Eval: "
+            "(1) Dung model nho (gpt-3.5-turbo) cho cau hoi complexity=simple, "
+            "model lon (gpt-4o-mini) cho cau kho. "
+            "(2) Cache ket qua Judge cho cau hoi trung lap. "
+            "(3) Giam max_tokens Judge xuong 100 cho cau don gian."
         ),
     }
 
@@ -191,20 +145,20 @@ def build_summary(results: list, version: str, judge: LLMJudge, runner: Benchmar
 # ── Main Pipeline ─────────────────────────────────────────────
 async def run_benchmark_with_results(agent_version: str):
     """Chạy benchmark đầy đủ cho 1 phiên bản Agent."""
-    print(f"\n🚀 Khởi động Benchmark cho {agent_version}...")
+    print(f"\n[*] Khoi dong Benchmark cho {agent_version}...")
 
     if not os.path.exists("data/golden_set.jsonl"):
-        print("❌ Thiếu data/golden_set.jsonl. Hãy chạy 'python data/synthetic_gen.py' trước.")
+        print("[!] Thieu data/golden_set.jsonl. Hay chay 'python data/synthetic_gen.py' truoc.")
         return None, None, None, None
 
     with open("data/golden_set.jsonl", "r", encoding="utf-8") as f:
         dataset = [json.loads(line) for line in f if line.strip()]
 
     if not dataset:
-        print("❌ File data/golden_set.jsonl rỗng.")
+        print("[!] File data/golden_set.jsonl rong.")
         return None, None, None, None
 
-    print(f"📊 Đã tải {len(dataset)} test cases.")
+    print(f"[*] Da tai {len(dataset)} test cases.")
 
     # Init components
     agent = MainAgent()
@@ -220,16 +174,16 @@ async def run_benchmark_with_results(agent_version: str):
 
 
 async def main():
-    """Pipeline chính: V1 → V2 → Regression → Release Gate."""
+    """Pipeline chính: V1 -> V2 -> Regression -> Release Gate."""
     print("=" * 60)
-    print("🏭 AI EVALUATION FACTORY — EXPERT BENCHMARK")
+    print("AI EVALUATION FACTORY - EXPERT BENCHMARK")
     print("=" * 60)
 
     # ── V1 Benchmark ───────────────────────────────────────────
-    v1_results, v1_summary, _, _ = await run_benchmark_with_results("Agent_V1_Base")
+    v1_results, v1_summary, v1_judge, _ = await run_benchmark_with_results("Agent_V1_Base")
 
     if not v1_summary:
-        print("❌ Không thể chạy Benchmark V1. Kiểm tra data/golden_set.jsonl.")
+        print("[!] Khong the chay Benchmark V1. Kiem tra data/golden_set.jsonl.")
         return
 
     # ── V2 Benchmark ───────────────────────────────────────────
@@ -238,18 +192,19 @@ async def main():
     )
 
     if not v2_summary:
-        print("❌ Không thể chạy Benchmark V2.")
+        print("[!] Khong the chay Benchmark V2.")
         return
 
-    # ── Regression Analysis ────────────────────────────────────
-    regression = compute_regression(v1_summary, v2_summary)
+    # ── Regression Analysis & Release Gate (Quang) ──────────────
+    gate = ReleaseGate()
+    regression = gate.check(v1_summary, v2_summary)
 
     # Merge regression into V2 summary
     v2_summary["regression"] = regression
 
     # ── Print Results ──────────────────────────────────────────
     print("\n" + "=" * 60)
-    print("📊 KẾT QUẢ BENCHMARK")
+    print("KET QUA BENCHMARK")
     print("=" * 60)
 
     for label, summary in [("V1 (Base)", v1_summary), ("V2 (Optimized)", v2_summary)]:
@@ -261,23 +216,12 @@ async def main():
         print(f"    Agreement Rate: {m['agreement_rate']*100:.1f}%")
         print(f"    Faithfulness: {m['faithfulness']:.3f} | Relevancy: {m['relevancy']:.3f}")
 
-    print("\n" + "-" * 60)
-    print("📈 REGRESSION ANALYSIS")
-    print("-" * 60)
-    comp = regression["comparison"]
-    print(f"  Delta Score: {'+' if comp['delta_score'] >= 0 else ''}{comp['delta_score']:.3f}")
-    print(f"  Delta MRR:   {'+' if comp['delta_mrr'] >= 0 else ''}{comp['delta_mrr']:.3f}")
-    print(f"  Delta Hit Rate: {'+' if comp['delta_hit_rate'] >= 0 else ''}{comp['delta_hit_rate']:.3f}")
-
-    gate = regression["release_gate"]
-    print(f"\n  {gate['decision']}")
-    for cond, ok in gate["conditions"].items():
-        icon = "✅" if ok else "❌"
-        print(f"    {icon} {cond}")
+    # Report chi tiet tu Release Gate của Quang
+    gate.report(regression)
 
     # ── Cost Report ────────────────────────────────────────────
-    print("\n" + "-" * 60)
-    print("💰 COST REPORT")
+    print("-" * 60)
+    print("COST REPORT")
     print("-" * 60)
     perf = v2_summary["performance"]
     jr = v2_summary["judge_reliability"]
@@ -292,13 +236,17 @@ async def main():
 
     with open("reports/summary.json", "w", encoding="utf-8") as f:
         json.dump(v2_summary, f, ensure_ascii=False, indent=2)
-    print("\n✅ Saved: reports/summary.json")
+    print(f"\n[OK] Saved: reports/summary.json")
 
     with open("reports/benchmark_results.json", "w", encoding="utf-8") as f:
         json.dump(v2_results, f, ensure_ascii=False, indent=2)
-    print("✅ Saved: reports/benchmark_results.json")
+    print("[OK] Saved: reports/benchmark_results.json")
 
-    print("\n🏁 BENCHMARK HOÀN TẤT!")
+    # Clean up (Acquire and close)
+    if v1_judge: await v1_judge.aclose()
+    if v2_judge: await v2_judge.aclose()
+
+    print("\nBENCHMARK HOAN TAT!")
 
 
 if __name__ == "__main__":
