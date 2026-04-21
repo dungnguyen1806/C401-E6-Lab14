@@ -76,6 +76,9 @@ class BenchmarkRunner:
             tasks = [self.run_single_test(case) for case in batch]
             batch_results = await asyncio.gather(*tasks)
             results.extend(batch_results)
+            # Nếu đang dùng Gemini Free tier (5 RPM), cần sleep sau mỗi batch
+            if i + batch_size < total:
+                await asyncio.sleep(20) # Chờ 20s để không bị 429 quá nhiều
 
         elapsed = time.perf_counter() - start_all
         print(f"  Tong thoi gian: {elapsed:.1f}s | Trung binh: {elapsed/max(total,1):.2f}s/case")

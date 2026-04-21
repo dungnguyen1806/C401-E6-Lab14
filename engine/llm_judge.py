@@ -96,18 +96,37 @@ class LLMJudge:
 
         user_content = _build_judge_user_prompt(question, answer, ground_truth)
         
+        max_retries = 3
+        max_retries = 3
+        retry_delay = 5
+        
+        response = None
+        for attempt in range(max_retries):
+            try:
+                response = await client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                        {"role": "user", "content": user_content},
+                    ],
+                    temperature=temp,
+                    response_format={"type": "json_object"} if "gemini" not in model else None,
+                    max_tokens=300
+                )
+                break # Success, exit loop
+            except Exception as e:
+                if "429" in str(e) and attempt < max_retries - 1:
+                    print(f"Rate limit hit for {model}. Retrying in {retry_delay}s... (Attempt {attempt+1}/{max_retries})")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2 # Exponential backoff
+                else:
+                    print(f"Error calling {model}: {e}")
+                    return self._simulate_fallback(model)
+
+        if not response:
+            return self._simulate_fallback(model)
+
         try:
-            response = await client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
-                    {"role": "user", "content": user_content},
-                ],
-                temperature=temp,
-                response_format={"type": "json_object"} if "gemini" not in model else None,
-                max_tokens=300
-            )
-            
             raw_content = response.choices[0].message.content
             # Cleanup Markdown code blocks nếu có
             if "```json" in raw_content:
@@ -124,7 +143,7 @@ class LLMJudge:
                 usage.completion_tokens
             )
         except Exception as e:
-            print(f"Error calling {model}: {e}")
+            print(f"Error parsing response from {model}: {e}")
             return self._simulate_fallback(model)
 
     def _simulate_fallback(self, model: str) -> Tuple[int, str, int, int]:

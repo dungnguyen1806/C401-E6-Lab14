@@ -160,10 +160,10 @@ async def run_benchmark_with_results(agent_version: str):
     print(f"[*] Da tai {len(dataset)} test cases.")
 
     # Init components
-    agent = MainAgent()
+    agent = MainAgent(version=agent_version)
     evaluator = ExpertEvaluator()
-    judge = LLMJudge(model_a="gpt-4o-mini", model_b="gpt-3.5-turbo")
-    runner = BenchmarkRunner(agent, evaluator, judge, max_concurrent=5)
+    judge = LLMJudge(model_a="gpt-3.5-turbo", model_b="gpt-4o")
+    runner = BenchmarkRunner(agent, evaluator, judge, max_concurrent=2)
 
     # Run
     results = await runner.run_all(dataset)

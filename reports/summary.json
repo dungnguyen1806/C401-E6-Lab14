@@ -1,0 +1,62 @@
+{
+  "metadata": {
+    "version": "Agent_V2_Optimized",
+    "total": 60,
+    "timestamp": "2026-04-21 16:50:19"
+  },
+  "metrics": {
+    "avg_score": 3.225,
+    "hit_rate": 0.891,
+    "mrr": 0.852,
+    "agreement_rate": 0.867,
+    "faithfulness": 0.776,
+    "relevancy": 0.666
+  },
+  "pass_fail": {
+    "passed": 32,
+    "failed": 28,
+    "pass_rate": 53.3
+  },
+  "retrieval_details": {
+    "included_cases": 55,
+    "out_of_context_cases": 5
+  },
+  "performance": {
+    "avg_latency_sec": 0.952,
+    "total_cost_usd": 0.0954,
+    "avg_cost_per_case_usd": 0.001589
+  },
+  "judge_reliability": {
+    "total_cases": 60,
+    "total_input_tokens": 55586,
+    "total_output_tokens": 7385,
+    "total_cost_usd": 0.0829,
+    "avg_cost_per_case": 0.001381,
+    "cohens_kappa": 0.386,
+    "model_consistency_rate": "95.0%"
+  },
+  "cost_reduction_proposal": "De xuat toi uu chi phi Eval (Gemini-Era): (1) Dung Gemini 2.0 Flash cho các cau complexity=simple ($0.1/1M tokens). (2) Chi goi GPT-4o-mini lam Cross-check khi Gemini co score < 3 hoac co xung dot lon. (3) Nen su dung Batch API cua OpenAI de giam 50% chi phi cho Judge thu hai.",
+  "regression": {
+    "approved": false,
+    "score_delta": -0.6749999999999998,
+    "reasons": [
+      "Quality regression: Score decreased by 0.67",
+      "Pass Rate regression: 53.3% < 76.7%"
+    ],
+    "metrics_comparison": {
+      "score": [
+        3.9,
+        3.225
+      ],
+      "pass_rate": [
+        76.7,
+        53.3
+      ],
+      "cost": [
+        0.1067,
+        0.0954
+      ],
+      "kappa": 0.386
+    }
+  }
+}

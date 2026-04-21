@@ -82,7 +82,7 @@ Câu hỏi → [Retriever] → Top-K Chunks → [LLM] → Câu trả lời
 | **Why 2** | Retriever (`FileRetriever`) không trả về chunk `chunk_fe33a8f0` chứa mức phạt đi muộn. |
 | **Why 3** | Thuật toán retrieval dựa trên **keyword overlap** — từ "muộn 45 phút" không trùng nhiều từ khoá với chunk chứa "Muộn từ 16 – 60 phút: Phạt 200.000 VNĐ". |
 | **Why 4** | `FileRetriever` sử dụng tokenization đơn giản (`\w+` regex) và so sánh exact match — không hiểu semantic similarity. Ví dụ: "45 phút" và "16 – 60 phút" không overlap dù cùng ngữ nghĩa. |
-| **🔴 Root Cause** | **Retrieval strategy không phù hợp.** Keyword-based retrieval không thể xử lý các truy vấn cần semantic understanding (số liệu, khoảng giá trị, điều kiện if/else phức tạp). Cần chuyển sang **Vector Embedding-based retrieval** (ví dụ: ChromaDB + OpenAI Embeddings). |
+| **Root Cause** | **Retrieval strategy không phù hợp.** Keyword-based retrieval không thể xử lý các truy vấn cần semantic understanding (số liệu, khoảng giá trị, điều kiện if/else phức tạp). Cần chuyển sang **Vector Embedding-based retrieval** (ví dụ: ChromaDB + OpenAI Embeddings). |
 
 ---
 
