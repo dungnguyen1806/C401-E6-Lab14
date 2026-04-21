@@ -1,5 +1,6 @@
 import asyncio
-from typing import List, Dict
+from typing import Dict
+from engine.file_retriever import FileRetriever
 
 class MainAgent:
     """
@@ -8,6 +9,7 @@ class MainAgent:
     """
     def __init__(self):
         self.name = "SupportAgent-v1"
+        self.retriever = FileRetriever("data/knowledge_base.json")
 
     async def query(self, question: str) -> Dict:
         """
@@ -18,17 +20,19 @@ class MainAgent:
         # Giả lập độ trễ mạng/LLM
         await asyncio.sleep(0.5) 
         
-        # Giả lập dữ liệu trả về
+        top_chunks = self.retriever.retrieve(question, top_k=3)
+        retrieved_ids = [chunk.get("chunk_id", "") for chunk in top_chunks if chunk.get("chunk_id")]
+        contexts = [chunk.get("text", "") for chunk in top_chunks]
+
+        # Giả lập dữ liệu trả về, nhưng dùng context đã retrieve từ knowledge_base.json
         return {
             "answer": f"Dựa trên tài liệu hệ thống, tôi xin trả lời câu hỏi '{question}' như sau: [Câu trả lời mẫu].",
-            "contexts": [
-                "Đoạn văn bản trích dẫn 1 dùng để trả lời...",
-                "Đoạn văn bản trích dẫn 2 dùng để trả lời..."
-            ],
+            "retrieved_ids": retrieved_ids,
+            "contexts": contexts,
             "metadata": {
                 "model": "gpt-4o-mini",
                 "tokens_used": 150,
-                "sources": ["policy_handbook.pdf"]
+                "sources": ["data/knowledge_base.json"]
             }
         }
 
