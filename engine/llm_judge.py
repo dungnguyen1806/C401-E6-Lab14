@@ -1,119 +1,245 @@
-import asyncio
-import os
-import json
-from typing import Dict, Any
-from openai import AsyncOpenAI
+"""
+Multi-Judge Consensus Engine (Optimized for Gemini 2.5 Flash)
+===========================================================
+Hệ thống sử dụng Gemini 2.5 Flash làm giám khảo chính kết hợp với 
+GPT-4o-mini để tạo ra sự đồng thuận (Consensus) trong đánh giá AI.
 
-SYSTEM_PROMPT = """You are an expert AI evaluator.
-You will be provided with a Question, and two answers (Answer A and Answer B).
-One of these answers is the generated response, and the other is the Reference Ground Truth.
-Your task is to compare them and evaluate the quality of both answers.
-
-[Question]: {question}
-
-[Answer A]: {answer_a}
-[Answer B]: {answer_b}
-
-Tasks:
-1. Think step-by-step (Chain of Thought): Analyze the factual accuracy, completeness, and clarity of both answers.
-2. Determine which answer is better ('A', 'B', or 'Tie').
-3. Based on your analysis, assign a score from 1 to 5 for Answer A, and a score from 1 to 5 for Answer B using the following Rubric:
-   - Điểm 5: Câu trả lời hoàn toàn trung thực, đầy đủ và không chứa bất kỳ ảo giác nào. (Perfectly accurate, complete, no hallucinations).
-   - Điểm 4: Câu trả lời tốt, nhưng có lỗi nhỏ không đáng kể. (Good, minor non-critical issues).
-   - Điểm 3: Câu trả lời chính xác nhưng bỏ sót các ràng buộc quan trọng trong ngữ cảnh. (Accurate but misses important constraints).
-   - Điểm 2: Câu trả lời kém, phần lớn không chính xác hoặc không liên quan. (Poor, mostly incorrect or irrelevant).
-   - Điểm 1: Câu trả lời trực tiếp mâu thuẫn với ngữ cảnh. (Directly contradicts the context).
-
-Output your response as a valid JSON object with the following format exactly:
-{{
-    "chain_of_thought": "your step-by-step reasoning",
-    "winner": "A" or "B" or "Tie",
-    "score_a": <int>,
-    "reason_a": "Clear reason why Answer A received this score",
-    "score_b": <int>,
-    "reason_b": "Clear reason why Answer B received this score"
-}}
+Author: Long & Hai (Refined by Gemini)
 """
 
-class LLMJudge:
-    def __init__(self):
-        self.openai_client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        self.gemini_client = AsyncOpenAI(
-            api_key=os.environ.get("GEMINI_API_KEY"),
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-        )
-        self.models = {
-            "gpt-4o": self.openai_client,
-            "gemini-2.5-flash": self.gemini_client
-        }
+import asyncio
+import json
+import os
+import random
+from typing import Any, Dict, List, Optional, Tuple
 
-    async def _call_judge(self, client: AsyncOpenAI, model: str, question: str, answer_a: str, answer_b: str) -> dict:
-        prompt = SYSTEM_PROMPT.format(question=question, answer_a=answer_a, answer_b=answer_b)
+from openai import AsyncOpenAI
+
+MODEL_PRICING = {
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+    "gpt-4o": {"input": 2.50, "output": 10.00},
+    "gemini-2.5-flash": {"input": 0.10, "output": 0.40}, 
+    "gemini-2.5-pro": {"input": 1.25, "output": 5.00},
+}
+
+JUDGE_SYSTEM_PROMPT = """Bạn là một Giám khảo AI chuyên nghiệp, có tư duy phản biện cao. 
+Nhiệm vụ: Chấm điểm câu trả lời của AI Agent dựa trên Ground Truth (Đáp án chuẩn).
+
+## Tiêu chí chấm điểm (Thang 1-5):
+- 5 (Excellent): Hoàn hảo, chính xác tuyệt đối, hành văn chuyên nghiệp.
+- 4 (Good): Đúng trọng tâm, thấu đáo nhưng có thể thiếu một chi tiết cực nhỏ không đáng kể.
+- 3 (Fair): Đúng ý chính nhưng thiếu thông tin quan trọng hoặc cách diễn đạt chưa tối ưu.
+- 2 (Poor): Có sai sót về kiến thức hoặc thiếu hụt phần lớn nội dung cần thiết.
+- 1 (Fail): Sai hoàn toàn, bịa đặt (hallucination) hoặc không liên quan.
+
+## Quy định định dạng:
+Chỉ phản hồi duy nhất một JSON object với cấu trúc:
+{"score": <int>, "reasoning": "<giải thích súc tích bằng tiếng Việt trong 2 câu>"}
+"""
+
+def _build_judge_user_prompt(question: str, answer: str, ground_truth: str) -> str:
+    return f"""## Bối cảnh:
+- Câu hỏi: {question}
+- Đáp án chuẩn: {ground_truth}
+
+## Câu trả lời cần chấm điểm:
+{answer}
+
+Hãy phân tích và đưa ra điểm số."""
+
+class LLMJudge:
+    """
+    Multi-Judge Consensus Engine.
+    Sử dụng Gemini 2.5 Flash làm Judge chủ lực để tối ưu chi phí và tốc độ.
+    """
+
+    def __init__(
+        self,
+        model_a: str = "gemini-2.5-flash", # Ưu tiên Gemini 2.5 Flash
+        model_b: str = "gpt-4o-mini",      # Cross-check với OpenAI
+    ):
+        self.model_a = model_a
+        self.model_b = model_b
+        
+        self._openai_client: Optional[AsyncOpenAI] = None
+        self._gemini_client: Optional[AsyncOpenAI] = None
+        self._init_clients()
+
+        # Metrics Tracking
+        self._all_scores_a: List[int] = []
+        self._all_scores_b: List[int] = []
+        self._total_stats = {"input": 0, "output": 0, "cost": 0.0}
+
+    def _init_clients(self) -> None:
+        openai_key = os.environ.get("OPENAI_API_KEY", "")
+        gemini_key = os.environ.get("GEMINI_API_KEY", "")
+
+        if openai_key:
+            self._openai_client = AsyncOpenAI(api_key=openai_key)
+        
+        if gemini_key:
+            # Endpoint chuẩn cho Gemini qua giao thức OpenAI
+            self._gemini_client = AsyncOpenAI(
+                api_key=gemini_key,
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            )
+
+    def _get_client_for_model(self, model: str) -> Optional[AsyncOpenAI]:
+        return self._gemini_client if "gemini" in model else self._openai_client
+
+    async def _call_single_judge(
+        self, model: str, question: str, answer: str, ground_truth: str, temp: float = 0.0
+    ) -> Tuple[int, str, int, int]:
+        client = self._get_client_for_model(model)
+        if not client:
+            return self._simulate_fallback(model)
+
+        user_content = _build_judge_user_prompt(question, answer, ground_truth)
+        
         try:
             response = await client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": "You are a helpful and expert AI judge. Always return valid JSON."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_content},
                 ],
-                response_format={"type": "json_object"},
-                temperature=0.0
+                temperature=temp,
+                response_format={"type": "json_object"} if "gemini" not in model else None,
+                max_tokens=300
             )
-            return json.loads(response.choices[0].message.content)
+            
+            raw_content = response.choices[0].message.content
+            # Cleanup Markdown code blocks nếu có
+            if "```json" in raw_content:
+                raw_content = raw_content.split("```json")[1].split("```")[0].strip()
+            
+            data = json.loads(raw_content)
+            score = max(1, min(5, int(data.get("score", 3))))
+            
+            usage = response.usage
+            return (
+                score, 
+                data.get("reasoning", ""), 
+                usage.prompt_tokens, 
+                usage.completion_tokens
+            )
         except Exception as e:
             print(f"Error calling {model}: {e}")
-            return {"chain_of_thought": "Error", "winner": "Tie", "score_a": 3, "reason_a": "API Error", "score_b": 3, "reason_b": "API Error"}
+            return self._simulate_fallback(model)
 
-    async def evaluate_multi_judge(self, question: str, answer: str, ground_truth: str) -> Dict[str, Any]:
-        """
-        EXPERT TASK: Calls 2 models (gpt-4o and gemini-2.5-flash).
-        Performs Pairwise evaluation, uses CoT, runs 2 times (swapping A and B) to avoid position bias.
-        """
-        # Run 1: A = Agent, B = Ground Truth
-        # Run 2: A = Ground Truth, B = Agent
+    def _simulate_fallback(self, model: str) -> Tuple[int, str, int, int]:
+        """Dùng làm phương án dự phòng khi API lỗi"""
+        return (3, f"Fallback: API {model} gặp sự cố.", 0, 0)
+
+    async def evaluate_multi_judge(
+        self, question: str, answer: str, ground_truth: str
+    ) -> Dict[str, Any]:
+        # Chạy song song 2 giám khảo
+        task_a = self._call_single_judge(self.model_a, question, answer, ground_truth)
+        task_b = self._call_single_judge(self.model_b, question, answer, ground_truth)
         
-        tasks = []
-        for model_name, client in self.models.items():
-            # Run 1
-            tasks.append(self._call_judge(client, model_name, question, answer, ground_truth))
-            # Run 2 (Swapped)
-            tasks.append(self._call_judge(client, model_name, question, ground_truth, answer))
+        res_a, res_b = await asyncio.gather(task_a, task_b)
+        score_a, reason_a, in_a, out_a = res_a
+        score_b, reason_b, in_b, out_b = res_b
+
+        delta = abs(score_a - score_b)
+        final_score = (score_a + score_b) / 2
+        tie_breaker_used = False
+        
+        # Nếu 2 model lệch nhau quá nhiều (>1 điểm), dùng Tie-Breaker
+        if delta > 1:
+            tie_breaker_used = True
+            # Dùng lại model A (Gemini 2.5 Flash) nhưng với temperature cao hơn để check lại
+            tb_score, tb_reason, in_tb, out_tb = await self._call_single_judge(
+                self.model_a, question, answer, ground_truth, temp=0.7
+            )
+            scores = sorted([score_a, score_b, tb_score])
+            final_score = float(scores[1]) # Lấy trung vị (Median)
             
-        # Execute API calls concurrently
-        results = await asyncio.gather(*tasks)
+            in_a += in_tb
+            out_a += out_tb
+
+        # Tính toán chi phí
+        cost = self._calc_cost(self.model_a, in_a, out_a) + self._calc_cost(self.model_b, in_b, out_b)
         
-        # Parse results
-        # tasks order: [gpt4o_run1, gpt4o_run2, gemini_run1, gemini_run2]
-        gpt4o_r1, gpt4o_r2, gemini_r1, gemini_r2 = results
-        
-        # Extract Agent score
-        # In Run 1, Agent is A so score is score_a
-        # In Run 2, Agent is B so score is score_b
-        gpt4o_agent_score_1 = gpt4o_r1.get("score_a", 3)
-        gpt4o_agent_score_2 = gpt4o_r2.get("score_b", 3)
-        gpt4o_avg = (gpt4o_agent_score_1 + gpt4o_agent_score_2) / 2
-        
-        gemini_agent_score_1 = gemini_r1.get("score_a", 3)
-        gemini_agent_score_2 = gemini_r2.get("score_b", 3)
-        gemini_avg = (gemini_agent_score_1 + gemini_agent_score_2) / 2
-        
-        final_score = (gpt4o_avg + gemini_avg) / 2
-        
-        # Calculate Consensus / Agreement Rate
-        # Assume consensus if score difference is <= 1 point
-        agreement_rate = 1.0 if abs(gpt4o_avg - gemini_avg) <= 1.0 else 0.5
-        
+        # Lưu stats
+        self._all_scores_a.append(score_a)
+        self._all_scores_b.append(score_b)
+        self._total_stats["input"] += (in_a + in_b)
+        self._total_stats["output"] += (out_a + out_b)
+        self._total_stats["cost"] += cost
+
+        # Tính Agreement Rate cho Release Gate
+        if delta == 0:
+            agreement_rate = 1.0
+        elif delta == 1:
+            agreement_rate = 0.75
+        elif delta == 2:
+            agreement_rate = 0.5
+        else:
+            agreement_rate = 0.25
+
         return {
-            "final_score": final_score,
+            "final_score": round(final_score, 2),
             "agreement_rate": agreement_rate,
-            "individual_scores": {
-                "gpt-4o": gpt4o_avg,
-                "gemini-2.5-flash": gemini_avg
+            "consensus_reached": delta <= 1,
+            "individual_judgments": {
+                "judge_primary": {"model": self.model_a, "score": score_a, "reason": reason_a},
+                "judge_secondary": {"model": self.model_b, "score": score_b, "reason": reason_b}
             },
-            "details": {
-                "gpt-4o_run1": gpt4o_r1,
-                "gpt-4o_run2": gpt4o_r2,
-                "gemini-2.5-flash_run1": gemini_r1,
-                "gemini-2.5-flash_run2": gemini_r2
+            "metrics": {
+                "delta": delta,
+                "tie_breaker_active": tie_breaker_used
+            },
+            "cost": {
+                "total_usd": round(cost, 6),
+                "input_tokens": in_a + in_b,
+                "output_tokens": out_a + out_b
             }
         }
+
+    def _calc_cost(self, model: str, in_t: int, out_t: int) -> float:
+        p = MODEL_PRICING.get(model, MODEL_PRICING["gemini-2.5-flash"])
+        return (in_t / 1_000_000 * p["input"]) + (out_t / 1_000_000 * p["output"])
+
+    def compute_cohens_kappa(self) -> float:
+        if not self._all_scores_a:
+            return 0.0
+
+        n = len(self._all_scores_a)
+        categories = list(range(1, 6))
+        agreements = sum(1 for a, b in zip(self._all_scores_a, self._all_scores_b) if a == b)
+        p_observed = agreements / n
+
+        p_expected = 0.0
+        for cat in categories:
+            p_a = sum(1 for s in self._all_scores_a if s == cat) / n
+            p_b = sum(1 for s in self._all_scores_b if s == cat) / n
+            p_expected += p_a * p_b
+
+        if p_expected >= 1.0:
+            return 1.0
+        return round((p_observed - p_expected) / (1 - p_expected), 4)
+
+    async def aclose(self) -> None:
+        if self._openai_client:
+            await self._openai_client.close()
+        if self._gemini_client:
+            await self._gemini_client.close()
+
+    def get_total_cost_report(self) -> Dict[str, Any]:
+        n = len(self._all_scores_a)
+        return {
+            "total_cases": n,
+            "total_input_tokens": self._total_stats["input"],
+            "total_output_tokens": self._total_stats["output"],
+            "total_cost_usd": round(self._total_stats["cost"], 4),
+            "avg_cost_per_case": round(self._total_stats["cost"] / max(n, 1), 6),
+            "cohens_kappa": self.compute_cohens_kappa(),
+            "model_consistency_rate": self._calculate_agreement()
+        }
+
+    def _calculate_agreement(self) -> str:
+        if not self._all_scores_a: return "0%"
+        matches = sum(1 for a, b in zip(self._all_scores_a, self._all_scores_b) if abs(a-b) <= 1)
+        return f"{(matches / len(self._all_scores_a)) * 100:.1f}%"
